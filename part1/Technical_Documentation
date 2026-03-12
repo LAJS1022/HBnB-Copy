@@ -1,4 +1,3 @@
-# HBnB Evolution – Technical Documentation (Part 1)
 ```mermaid
 classDiagram
 class PresentationLayer {
