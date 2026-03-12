@@ -1,3 +1,6 @@
+# Sequence Diagram - Fetch Places
+
+```mermaid
 sequenceDiagram
     participant Client
     participant API
