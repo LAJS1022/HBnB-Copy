@@ -1,3 +1,6 @@
+# Sequence Diagram - Place Creation
+
+```mermaid
 sequenceDiagram
     participant Client
     participant API
