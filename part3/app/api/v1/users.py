@@ -1,5 +1,6 @@
 from flask import request
 from flask_restx import Namespace, Resource, fields
+from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from app.models.user import User
 from app.services.facade import facade
 
@@ -15,13 +16,12 @@ user_model = ns.model('User', {
 @ns.route('/')
 class UserList(Resource):
     def get(self):
-        """Get all users - password never returned"""
         return [u.to_dict() for u in facade.list_all() if isinstance(u, User)]
 
     @ns.expect(user_model)
     def post(self):
-        """Register a new user with hashed password"""
         data = request.json
+
         existing = [u for u in facade.list_all()
                     if isinstance(u, User) and u.email == data['email']]
         if existing:
@@ -32,25 +32,31 @@ class UserList(Resource):
                 data['first_name'],
                 data['last_name'],
                 data['email'],
-                data['password'],  
+                data['password'],
                 data.get('is_admin', False)
             )
             facade.create(user)
-            return user.to_dict(), 201 
+            return user.to_dict(), 201
         except ValueError as e:
             return {'error': str(e)}, 400
 
 @ns.route('/<string:user_id>')
 class UserResource(Resource):
     def get(self, user_id):
-        """Get user by ID - password never returned"""
         user = facade.get(user_id)
         if not user or not isinstance(user, User):
             return {'error': 'User not found'}, 404
-        return user.to_dict() 
+        return user.to_dict()
 
+    @jwt_required()
     @ns.expect(user_model)
     def put(self, user_id):
+        current_user_id = get_jwt_identity()
+        claims = get_jwt()
+
+        if current_user_id != user_id and not claims.get('is_admin'):
+            return {'error': 'Unauthorized'}, 403
+
         user = facade.get(user_id)
         if not user or not isinstance(user, User):
             return {'error': 'User not found'}, 404
