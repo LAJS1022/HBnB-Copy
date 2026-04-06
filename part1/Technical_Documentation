@@ -1,0 +1,188 @@
+# HBnB Evolution – Technical Documentation (Part 1)
+
+
+This document provides the technical blueprint for the HBnB Evolution application, a simplified AirBnB‑like system. It compiles the architectural overview, business logic design, and API interaction flows. The goal is to guide implementation in later phases by ensuring clarity of design, consistency of rules, and a well‑defined layered architecture.
+
+## High‑Level Architecture
+The application follows a layered architecture with three main components: Presentation Layer, Business Logic Layer, and Persistence Layer. The facade pattern is used to simplify communication between layers.
+```mermaid
+classDiagram
+class PresentationLayer {
+    <<Interface>>
+    +ServiceAPI
+}
+class BusinessLogicLayer {
+    +User
+    +Place
+    +Review
+    +Amenity
+}
+class PersistenceLayer {
+    +DatabaseAccess
+    +Repositories
+}
+PresentationLayer --> BusinessLogicLayer : Facade Pattern
+BusinessLogicLayer --> PersistenceLayer : Database Operations
+Notes:
+
+Presentation Layer handles user interaction via APIs.
+
+Business Logic Layer contains models and rules for Users, Places, Reviews, and Amenities.
+
+Persistence Layer manages database access and repositories.
+
+The Facade Pattern provides a unified interface between layers, simplifying communication.
+
+Business Logic Layer
+The core entities of the system are Users, Places, Reviews, and Amenities. Each entity includes audit fields and CRUD methods.
+
+mermaid
+classDiagram
+class User {
+    +UUID id
+    +String firstName
+    +String lastName
+    +String email
+    +String password
+    +Boolean isAdmin
+    +DateTime createdAt
+    +DateTime updatedAt
+    +create()
+    +update()
+    +delete()
+    +list()
+}
+
+class Place {
+    +UUID id
+    +String title
+    +String description
+    +Float price
+    +Float latitude
+    +Float longitude
+    +DateTime createdAt
+    +DateTime updatedAt
+    +create()
+    +update()
+    +delete()
+    +list()
+}
+
+class Review {
+    +UUID id
+    +Integer rating
+    +String comment
+    +DateTime createdAt
+    +DateTime updatedAt
+    +create()
+    +update()
+    +delete()
+    +list()
+}
+
+class Amenity {
+    +UUID id
+    +String name
+    +String description
+    +DateTime createdAt
+    +DateTime updatedAt
+    +create()
+    +update()
+    +delete()
+    +list()
+}
+
+User "1" --> "many" Place : owns
+User "1" --> "many" Review : writes
+Place "1" --> "many" Review : has
+Place "many" --> "many" Amenity : includes
+Notes:
+
+User is the core entity with admin flag, owns Places, writes Reviews.
+
+Place is linked to a User, can include multiple Amenities, and receives Reviews.
+
+Review is tied to both User and Place, includes rating and comment.
+
+Amenity is independent but associated with Places.
+
+All entities include audit fields (createdAt, updatedAt) and CRUD methods.
+
+API Interaction Flow
+The following sequence diagrams illustrate the flow of API calls between client, API, business logic, and persistence.
+
+User Registration
+mermaid
+sequenceDiagram
+    participant Client
+    participant API
+    participant BusinessLogic
+    participant Database
+
+    Client->>API: POST /users/register (user data)
+    API->>BusinessLogic: Validate and create User
+    BusinessLogic->>Database: Save User
+    Database-->>BusinessLogic: Confirmation
+    BusinessLogic-->>API: User created response
+    API-->>Client: 201 Created (User object)
+Notes:
+
+Validates user data, creates a User object, persists it, and returns confirmation.
+
+Place Creation
+mermaid
+sequenceDiagram
+    participant Client
+    participant API
+    participant BusinessLogic
+    participant Database
+
+    Client->>API: POST /places (place data)
+    API->>BusinessLogic: Validate and create Place
+    BusinessLogic->>Database: Save Place
+    Database-->>BusinessLogic: Confirmation
+    BusinessLogic-->>API: Place created response
+    API-->>Client: 201 Created (Place object)
+Notes:
+
+Ensures place data is valid, associates with User, persists, and returns the created Place.
+
+Review Submission
+mermaid
+sequenceDiagram
+    participant Client
+    participant API
+    participant BusinessLogic
+    participant Database
+
+    Client->>API: POST /reviews (review data)
+    API->>BusinessLogic: Validate User and Place
+    BusinessLogic->>BusinessLogic: Create Review object
+    BusinessLogic->>Database: Save Review
+    Database-->>BusinessLogic: Confirmation
+    BusinessLogic-->>API: Review created response
+    API-->>Client: 201 Created (Review object)
+Notes:
+
+Validates that both User and Place exist, creates Review, persists, and returns confirmation.
+
+Fetching Places
+mermaid
+sequenceDiagram
+    participant Client
+    participant API
+    participant BusinessLogic
+    participant Database
+
+    Client->>API: GET /places?criteria=...
+    API->>BusinessLogic: Request list of Places
+    BusinessLogic->>Database: Query Places with criteria
+    Database-->>BusinessLogic: Return list of Places
+    BusinessLogic-->>API: Format and return data
+    API-->>Client: 200 OK (List of Places)
+Notes:
+
+Handles query parameters, retrieves matching Places, formats response, and returns list.
+
+Conclusion
+This technical documentation provides a complete blueprint for HBnB Evolution. The layered architecture, entity design, and API flows are clearly defined, ensuring that implementation in subsequent phases will be consistent, auditable, and extensible. This document will serve as the reference point for developers and stakeholders throughout the project.
