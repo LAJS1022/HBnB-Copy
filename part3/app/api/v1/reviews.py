@@ -35,11 +35,13 @@ class ReviewList(Resource):
         if user.id != current_user_id:
             return {'error': 'Unauthorized'}, 403
 
-        if place.owner.id == current_user_id:
+        if place.owner_id == current_user_id:
             return {'error': 'You cannot review your own place'}, 400
 
-        duplicate = facade.review_repo.get_by_attribute('user_id', current_user_id)
-        if duplicate and duplicate.place_id == place.id:
+        existing = [r for r in facade.list_reviews()
+                    if r.user_id == current_user_id
+                    and r.place_id == place.id]
+        if existing:
             return {'error': 'You have already reviewed this place'}, 400
 
         try:
@@ -68,7 +70,7 @@ class ReviewResource(Resource):
         if not review:
             return {'error': 'Review not found'}, 404
 
-        if review.user.id != current_user_id and not claims.get('is_admin'):
+        if review.user_id != current_user_id and not claims.get('is_admin'):
             return {'error': 'Unauthorized'}, 403
 
         data = request.json
@@ -86,7 +88,7 @@ class ReviewResource(Resource):
         if not review:
             return {'error': 'Review not found'}, 404
 
-        if review.user.id != current_user_id and not claims.get('is_admin'):
+        if review.user_id != current_user_id and not claims.get('is_admin'):
             return {'error': 'Unauthorized'}, 403
 
         facade.delete_review(review_id)

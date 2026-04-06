@@ -6,6 +6,8 @@ class Review(BaseModel):
 
     text = db.Column(db.String(1000), nullable=False)
     rating = db.Column(db.Integer, nullable=False)
+    user_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
+    place_id = db.Column(db.String(36), db.ForeignKey('places.id'), nullable=False)
 
     def __init__(self, text, rating, user, place):
         if not text:
@@ -16,21 +18,16 @@ class Review(BaseModel):
         super().__init__()
         self.text = text
         self.rating = rating
-        self.user = user
-        self.place = place
+        self.user_id = user.id
+        self.place_id = place.id
 
     def to_dict(self):
         return {
             "id": self.id,
             "text": self.text,
             "rating": self.rating,
-            "user": {
-                "id": self.user.id,
-                "first_name": self.user.first_name,
-                "last_name": self.user.last_name,
-                "email": self.user.email,
-            },
-            "place_id": self.place.id,
+            "user_id": self.user_id,
+            "place_id": self.place_id,
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
         }

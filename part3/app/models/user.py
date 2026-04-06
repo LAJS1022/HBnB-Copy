@@ -10,6 +10,11 @@ class User(BaseModel):
     password = db.Column(db.String(128), nullable=False)
     is_admin = db.Column(db.Boolean, default=False)
 
+    places = db.relationship('Place', backref='owner', lazy=True,
+                             cascade='all, delete-orphan')
+    reviews = db.relationship('Review', backref='user', lazy=True,
+                              cascade='all, delete-orphan')
+
     def __init__(self, first_name, last_name, email, password, is_admin=False):
         if not email or "@" not in email:
             raise ValueError("Invalid email address")
@@ -25,6 +30,10 @@ class User(BaseModel):
 
     def verify_password(self, password):
         return bcrypt.check_password_hash(self.password, password)
+
+    def update(self):
+        self.updated_at = __import__('datetime').datetime.utcnow()
+        db.session.commit()
 
     def to_dict(self):
         return {

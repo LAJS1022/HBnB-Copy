@@ -2,7 +2,6 @@ from flask import request
 from flask_restx import Namespace, Resource, fields
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from app.models.place import Place
-from app.models.amenity import Amenity
 from app.services.facade import facade
 
 ns = Namespace('places', description='Place operations')
@@ -73,7 +72,7 @@ class PlaceResource(Resource):
         if not place:
             return {'error': 'Place not found'}, 404
 
-        if place.owner.id != current_user_id and not claims.get('is_admin'):
+        if place.owner_id != current_user_id and not claims.get('is_admin'):
             return {'error': 'Unauthorized'}, 403
 
         data = request.json
@@ -103,7 +102,7 @@ class PlaceResource(Resource):
         if not place:
             return {'error': 'Place not found'}, 404
 
-        if place.owner.id != current_user_id and not claims.get('is_admin'):
+        if place.owner_id != current_user_id and not claims.get('is_admin'):
             return {'error': 'Unauthorized'}, 403
 
         facade.delete_place(place_id)

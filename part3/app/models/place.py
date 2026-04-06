@@ -1,5 +1,6 @@
 from app import db
 from app.models.base_model import BaseModel
+from app.models.amenity import place_amenity
 
 class Place(BaseModel):
     __tablename__ = 'places'
@@ -9,6 +10,12 @@ class Place(BaseModel):
     price = db.Column(db.Float, nullable=False, default=0.0)
     latitude = db.Column(db.Float, nullable=True)
     longitude = db.Column(db.Float, nullable=True)
+    owner_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
+
+    reviews = db.relationship('Review', backref='place', lazy=True,
+                              cascade='all, delete-orphan')
+    amenities = db.relationship('Amenity', secondary=place_amenity,
+                                lazy='subquery', backref=db.backref('places', lazy=True))
 
     def __init__(self, name, description, owner, price=0.0, latitude=None, longitude=None):
         if not name:
@@ -23,11 +30,10 @@ class Place(BaseModel):
         super().__init__()
         self.name = name
         self.description = description
-        self.owner = owner
+        self.owner_id = owner.id
         self.price = price
         self.latitude = latitude
         self.longitude = longitude
-        self.amenities = []
 
     def to_dict(self):
         return {
@@ -37,12 +43,7 @@ class Place(BaseModel):
             "price": self.price,
             "latitude": self.latitude,
             "longitude": self.longitude,
-            "owner": {
-                "id": self.owner.id,
-                "first_name": self.owner.first_name,
-                "last_name": self.owner.last_name,
-                "email": self.owner.email,
-            },
+            "owner_id": self.owner_id,
             "amenities": [a.to_dict() for a in self.amenities],
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
