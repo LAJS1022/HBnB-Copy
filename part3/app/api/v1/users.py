@@ -18,8 +18,13 @@ class UserList(Resource):
     def get(self):
         return [u.to_dict() for u in facade.list_all() if isinstance(u, User)]
 
+    @jwt_required()
     @ns.expect(user_model)
     def post(self):
+        claims = get_jwt()
+        if not claims.get('is_admin'):
+            return {'error': 'Admin access required'}, 403
+
         data = request.json
 
         existing = [u for u in facade.list_all()
@@ -53,8 +58,9 @@ class UserResource(Resource):
     def put(self, user_id):
         current_user_id = get_jwt_identity()
         claims = get_jwt()
+        is_admin = claims.get('is_admin')
 
-        if current_user_id != user_id and not claims.get('is_admin'):
+        if current_user_id != user_id and not is_admin:
             return {'error': 'Unauthorized'}, 403
 
         user = facade.get(user_id)
@@ -62,14 +68,27 @@ class UserResource(Resource):
             return {'error': 'User not found'}, 404
 
         data = request.json
+
+        if not is_admin:
+            if 'email' in data or 'password' in data:
+                return {'error': 'Regular users cannot modify email or password'}, 403
+
+        if is_admin:
+            if 'email' in data:
+                duplicate = [u for u in facade.list_all()
+                             if isinstance(u, User)
+                             and u.email == data['email']
+                             and u.id != user_id]
+                if duplicate:
+                    return {'error': 'Email already in use'}, 400
+                user.email = data['email']
+
+            if 'password' in data:
+                from app import bcrypt
+                user.password = bcrypt.generate_password_hash(
+                    data['password']).decode('utf-8')
+
         user.first_name = data.get('first_name', user.first_name)
         user.last_name = data.get('last_name', user.last_name)
-        user.email = data.get('email', user.email)
-
-        if 'password' in data:
-            from app import bcrypt
-            user.password = bcrypt.generate_password_hash(
-                data['password']).decode('utf-8')
-
         user.update()
         return user.to_dict(), 200
