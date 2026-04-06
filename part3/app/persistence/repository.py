@@ -57,3 +57,13 @@ class SQLAlchemyRepository:
                 setattr(obj, key, value)
             db.session.commit()
         return obj
+
+
+class UserRepository(SQLAlchemyRepository):
+    def __init__(self):
+        from app.models.user import User
+        super().__init__(User)
+
+    def get_by_email(self, email):
+        from app.models.user import User
+        return User.query.filter_by(email=email).first()

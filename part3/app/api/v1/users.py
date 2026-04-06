@@ -16,7 +16,7 @@ user_model = ns.model('User', {
 @ns.route('/')
 class UserList(Resource):
     def get(self):
-        return [u.to_dict() for u in facade.list_all() if isinstance(u, User)]
+        return [u.to_dict() for u in facade.list_users()]
 
     @jwt_required()
     @ns.expect(user_model)
@@ -27,9 +27,7 @@ class UserList(Resource):
 
         data = request.json
 
-        existing = [u for u in facade.list_all()
-                    if isinstance(u, User) and u.email == data['email']]
-        if existing:
+        if facade.get_user_by_email(data['email']):
             return {'error': 'Email already registered'}, 400
 
         try:
@@ -40,7 +38,7 @@ class UserList(Resource):
                 data['password'],
                 data.get('is_admin', False)
             )
-            facade.create(user)
+            facade.create_user(user)
             return user.to_dict(), 201
         except ValueError as e:
             return {'error': str(e)}, 400
@@ -48,8 +46,8 @@ class UserList(Resource):
 @ns.route('/<string:user_id>')
 class UserResource(Resource):
     def get(self, user_id):
-        user = facade.get(user_id)
-        if not user or not isinstance(user, User):
+        user = facade.get_user(user_id)
+        if not user:
             return {'error': 'User not found'}, 404
         return user.to_dict()
 
@@ -63,8 +61,8 @@ class UserResource(Resource):
         if current_user_id != user_id and not is_admin:
             return {'error': 'Unauthorized'}, 403
 
-        user = facade.get(user_id)
-        if not user or not isinstance(user, User):
+        user = facade.get_user(user_id)
+        if not user:
             return {'error': 'User not found'}, 404
 
         data = request.json
@@ -75,11 +73,8 @@ class UserResource(Resource):
 
         if is_admin:
             if 'email' in data:
-                duplicate = [u for u in facade.list_all()
-                             if isinstance(u, User)
-                             and u.email == data['email']
-                             and u.id != user_id]
-                if duplicate:
+                duplicate = facade.get_user_by_email(data['email'])
+                if duplicate and duplicate.id != user_id:
                     return {'error': 'Email already in use'}, 400
                 user.email = data['email']
 
