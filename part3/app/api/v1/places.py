@@ -2,7 +2,6 @@ from flask import request
 from flask_restx import Namespace, Resource, fields
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from app.models.place import Place
-from app.models.user import User
 from app.models.amenity import Amenity
 from app.services.facade import facade
 
@@ -21,7 +20,7 @@ place_model = ns.model('Place', {
 @ns.route('/')
 class PlaceList(Resource):
     def get(self):
-        return [p.to_dict() for p in facade.list_all() if isinstance(p, Place)]
+        return [p.to_dict() for p in facade.list_places()]
 
     @jwt_required()
     @ns.expect(place_model)
@@ -29,8 +28,8 @@ class PlaceList(Resource):
         current_user_id = get_jwt_identity()
         data = request.json
 
-        owner = facade.get(data['owner_id'])
-        if not owner or not isinstance(owner, User):
+        owner = facade.get_user(data['owner_id'])
+        if not owner:
             return {'error': 'Owner not found'}, 404
 
         if owner.id != current_user_id:
@@ -49,18 +48,18 @@ class PlaceList(Resource):
             return {'error': str(e)}, 400
 
         for a_id in data.get('amenity_ids', []):
-            amenity = facade.get(a_id)
-            if amenity and isinstance(amenity, Amenity):
+            amenity = facade.get_amenity(a_id)
+            if amenity:
                 place.amenities.append(amenity)
 
-        facade.create(place)
+        facade.create_place(place)
         return place.to_dict(), 201
 
 @ns.route('/<string:place_id>')
 class PlaceResource(Resource):
     def get(self, place_id):
-        place = facade.get(place_id)
-        if not place or not isinstance(place, Place):
+        place = facade.get_place(place_id)
+        if not place:
             return {'error': 'Place not found'}, 404
         return place.to_dict()
 
@@ -70,8 +69,8 @@ class PlaceResource(Resource):
         current_user_id = get_jwt_identity()
         claims = get_jwt()
 
-        place = facade.get(place_id)
-        if not place or not isinstance(place, Place):
+        place = facade.get_place(place_id)
+        if not place:
             return {'error': 'Place not found'}, 404
 
         if place.owner.id != current_user_id and not claims.get('is_admin'):
@@ -88,8 +87,8 @@ class PlaceResource(Resource):
         if amenity_ids is not None:
             place.amenities = []
             for a_id in amenity_ids:
-                amenity = facade.get(a_id)
-                if amenity and isinstance(amenity, Amenity):
+                amenity = facade.get_amenity(a_id)
+                if amenity:
                     place.amenities.append(amenity)
 
         place.update()
@@ -100,12 +99,12 @@ class PlaceResource(Resource):
         current_user_id = get_jwt_identity()
         claims = get_jwt()
 
-        place = facade.get(place_id)
-        if not place or not isinstance(place, Place):
+        place = facade.get_place(place_id)
+        if not place:
             return {'error': 'Place not found'}, 404
 
         if place.owner.id != current_user_id and not claims.get('is_admin'):
             return {'error': 'Unauthorized'}, 403
 
-        facade.delete(place_id)
+        facade.delete_place(place_id)
         return {'message': 'Place deleted successfully'}, 200

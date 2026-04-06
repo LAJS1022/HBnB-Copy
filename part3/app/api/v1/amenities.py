@@ -13,7 +13,7 @@ amenity_model = ns.model('Amenity', {
 @ns.route('/')
 class AmenityList(Resource):
     def get(self):
-        return [a.to_dict() for a in facade.list_all() if isinstance(a, Amenity)]
+        return [a.to_dict() for a in facade.list_amenities()]
 
     @jwt_required()
     @ns.expect(amenity_model)
@@ -28,14 +28,14 @@ class AmenityList(Resource):
         except ValueError as e:
             return {'error': str(e)}, 400
 
-        facade.create(amenity)
+        facade.create_amenity(amenity)
         return amenity.to_dict(), 201
 
 @ns.route('/<string:amenity_id>')
 class AmenityResource(Resource):
     def get(self, amenity_id):
-        amenity = facade.get(amenity_id)
-        if not amenity or not isinstance(amenity, Amenity):
+        amenity = facade.get_amenity(amenity_id)
+        if not amenity:
             return {'error': 'Amenity not found'}, 404
         return amenity.to_dict()
 
@@ -46,8 +46,8 @@ class AmenityResource(Resource):
         if not claims.get('is_admin'):
             return {'error': 'Admin access required'}, 403
 
-        amenity = facade.get(amenity_id)
-        if not amenity or not isinstance(amenity, Amenity):
+        amenity = facade.get_amenity(amenity_id)
+        if not amenity:
             return {'error': 'Amenity not found'}, 404
 
         data = request.json

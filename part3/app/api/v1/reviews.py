@@ -2,8 +2,6 @@ from flask import request
 from flask_restx import Namespace, Resource, fields
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from app.models.review import Review
-from app.models.user import User
-from app.models.place import Place
 from app.services.facade import facade
 
 ns = Namespace('reviews', description='Review operations')
@@ -18,7 +16,7 @@ review_model = ns.model('Review', {
 @ns.route('/')
 class ReviewList(Resource):
     def get(self):
-        return [r.to_dict() for r in facade.list_all() if isinstance(r, Review)]
+        return [r.to_dict() for r in facade.list_reviews()]
 
     @jwt_required()
     @ns.expect(review_model)
@@ -26,12 +24,12 @@ class ReviewList(Resource):
         current_user_id = get_jwt_identity()
         data = request.json
 
-        user = facade.get(data['user_id'])
-        place = facade.get(data['place_id'])
+        user = facade.get_user(data['user_id'])
+        place = facade.get_place(data['place_id'])
 
-        if not user or not isinstance(user, User):
+        if not user:
             return {'error': 'User not found'}, 404
-        if not place or not isinstance(place, Place):
+        if not place:
             return {'error': 'Place not found'}, 404
 
         if user.id != current_user_id:
@@ -40,11 +38,8 @@ class ReviewList(Resource):
         if place.owner.id == current_user_id:
             return {'error': 'You cannot review your own place'}, 400
 
-        duplicate = [r for r in facade.list_all()
-                     if isinstance(r, Review)
-                     and r.user.id == current_user_id
-                     and r.place.id == place.id]
-        if duplicate:
+        duplicate = facade.review_repo.get_by_attribute('user_id', current_user_id)
+        if duplicate and duplicate.place_id == place.id:
             return {'error': 'You have already reviewed this place'}, 400
 
         try:
@@ -52,16 +47,14 @@ class ReviewList(Resource):
         except ValueError as e:
             return {'error': str(e)}, 400
 
-        facade.create(review)
-        user.reviews.append(review)
-        place.reviews.append(review)
+        facade.create_review(review)
         return review.to_dict(), 201
 
 @ns.route('/<string:review_id>')
 class ReviewResource(Resource):
     def get(self, review_id):
-        review = facade.get(review_id)
-        if not review or not isinstance(review, Review):
+        review = facade.get_review(review_id)
+        if not review:
             return {'error': 'Review not found'}, 404
         return review.to_dict()
 
@@ -71,8 +64,8 @@ class ReviewResource(Resource):
         current_user_id = get_jwt_identity()
         claims = get_jwt()
 
-        review = facade.get(review_id)
-        if not review or not isinstance(review, Review):
+        review = facade.get_review(review_id)
+        if not review:
             return {'error': 'Review not found'}, 404
 
         if review.user.id != current_user_id and not claims.get('is_admin'):
@@ -89,17 +82,12 @@ class ReviewResource(Resource):
         current_user_id = get_jwt_identity()
         claims = get_jwt()
 
-        review = facade.get(review_id)
-        if not review or not isinstance(review, Review):
+        review = facade.get_review(review_id)
+        if not review:
             return {'error': 'Review not found'}, 404
 
         if review.user.id != current_user_id and not claims.get('is_admin'):
             return {'error': 'Unauthorized'}, 403
 
-        if review in review.user.reviews:
-            review.user.reviews.remove(review)
-        if review in review.place.reviews:
-            review.place.reviews.remove(review)
-
-        facade.delete(review_id)
+        facade.delete_review(review_id)
         return {'message': 'Review deleted successfully'}, 200
