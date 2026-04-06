@@ -1,10 +1,15 @@
 from flask import Flask
 from flask_restx import Api
+from flask_bcrypt import Bcrypt
 from config import config
+
+bcrypt = Bcrypt()
 
 def create_app(config_name='default'):
     app = Flask(__name__)
     app.config.from_object(config[config_name])
+
+    bcrypt.init_app(app)
 
     api = Api(
         app,
